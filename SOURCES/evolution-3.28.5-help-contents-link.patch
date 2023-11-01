@@ -1,0 +1,36 @@
+From fe293e9f75ef3a7fec90e9b11f9c5935ae98445c Mon Sep 17 00:00:00 2001
+From: Milan Crha <mcrha@redhat.com>
+Date: Mon, 17 Sep 2018 22:46:40 +0200
+Subject: [PATCH] I#129 - Use unversioned URL to help.gnome.org
+
+Closes https://gitlab.gnome.org/GNOME/evolution/issues/129
+---
+ src/e-util/e-misc-utils.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/e-util/e-misc-utils.c b/src/e-util/e-misc-utils.c
+index c6f4e105b3..3801337fc2 100644
+--- a/src/e-util/e-misc-utils.c
++++ b/src/e-util/e-misc-utils.c
+@@ -319,7 +319,9 @@ e_display_help (GtkWindow *parent,
+ 		uri = g_string_new ("help:" PACKAGE);
+ 	} else {
+ 		uri = g_string_new ("https://help.gnome.org/users/" PACKAGE "/");
+-		g_string_append_printf (uri, "%d.%d", EDS_MAJOR_VERSION, EDS_MINOR_VERSION);
++		/*  Use '/stable/' until https://bugzilla.gnome.org/show_bug.cgi?id=785522 is fixed */
++		g_string_append (uri, "stable/");
++		/* g_string_append_printf (uri, "%d.%d", EDS_MAJOR_VERSION, EDS_MINOR_VERSION); */
+ 	}
+ 
+ 	timestamp = gtk_get_current_event_time ();
+@@ -327,7 +329,6 @@ e_display_help (GtkWindow *parent,
+ 	if (parent != NULL)
+ 		screen = gtk_widget_get_screen (GTK_WIDGET (parent));
+ 
+-
+ 	if (link_id != NULL) {
+ 		g_string_append (uri, "/");
+ 		g_string_append (uri, link_id);
+-- 
+2.21.0
+

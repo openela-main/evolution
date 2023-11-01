@@ -1,0 +1,39 @@
+diff -up evolution-3.28.5/src/modules/webkit-editor/e-webkit-editor.c.webkitgtk-2.30 evolution-3.28.5/src/modules/webkit-editor/e-webkit-editor.c
+--- evolution-3.28.5/src/modules/webkit-editor/e-webkit-editor.c.webkitgtk-2.30	2018-07-30 15:37:05.000000000 +0200
++++ evolution-3.28.5/src/modules/webkit-editor/e-webkit-editor.c	2020-11-30 10:37:53.797115765 +0100
+@@ -6111,11 +6111,12 @@ webkit_editor_drag_data_received_cb (Gtk
+ 	    info == E_DND_TARGET_TYPE_UTF8_STRING || info == E_DND_TARGET_TYPE_STRING ||
+ 	    info == E_DND_TARGET_TYPE_TEXT_PLAIN || info == E_DND_TARGET_TYPE_TEXT_PLAIN_UTF8) {
+ 		gdk_drag_status (context, gdk_drag_context_get_selected_action(context), time);
+-		if (!GTK_WIDGET_CLASS (e_webkit_editor_parent_class)->drag_drop (widget, context, x, y, time)) {
+-			g_warning ("Drop failed in WebKit");
++		if (!GTK_WIDGET_CLASS (e_webkit_editor_parent_class)->drag_drop ||
++		    !GTK_WIDGET_CLASS (e_webkit_editor_parent_class)->drag_drop (widget, context, x, y, time)) {
+ 			goto process_ourselves;
+ 		} else {
+-			GTK_WIDGET_CLASS (e_webkit_editor_parent_class)->drag_leave(widget, context, time);
++			if (GTK_WIDGET_CLASS (e_webkit_editor_parent_class)->drag_leave)
++				GTK_WIDGET_CLASS (e_webkit_editor_parent_class)->drag_leave (widget, context, time);
+ 			g_signal_stop_emission_by_name (widget, "drag-data-received");
+ 			if (!is_move)
+ 				webkit_editor_call_simple_extension_function (wk_editor, "DOMLastDropOperationDidCopy");
+@@ -6321,7 +6322,8 @@ webkit_editor_button_press_event (GtkWid
+ 	}
+ 
+ 	/* Chain up to parent's button_press_event() method. */
+-	return GTK_WIDGET_CLASS (e_webkit_editor_parent_class)->button_press_event (widget, event);
++	return GTK_WIDGET_CLASS (e_webkit_editor_parent_class)->button_press_event &&
++	       GTK_WIDGET_CLASS (e_webkit_editor_parent_class)->button_press_event (widget, event);
+ }
+ 
+ static gboolean
+@@ -6378,7 +6380,8 @@ webkit_editor_key_press_event (GtkWidget
+ 	}
+ 
+ 	/* Chain up to parent's key_press_event() method. */
+-	return GTK_WIDGET_CLASS (e_webkit_editor_parent_class)->key_press_event (widget, event);
++	return GTK_WIDGET_CLASS (e_webkit_editor_parent_class)->key_press_event &&
++	       GTK_WIDGET_CLASS (e_webkit_editor_parent_class)->key_press_event (widget, event);
+ }
+ 
+ static void
