@@ -1,0 +1,314 @@
+diff -up evolution-3.28.5/src/calendar/gui/e-comp-editor.c.crash-empty-attendee evolution-3.28.5/src/calendar/gui/e-comp-editor.c
+--- evolution-3.28.5/src/calendar/gui/e-comp-editor.c.crash-empty-attendee	2018-07-30 15:37:05.000000000 +0200
++++ evolution-3.28.5/src/calendar/gui/e-comp-editor.c	2020-05-15 12:24:47.067773299 +0200
+@@ -112,10 +112,10 @@ ece_restore_focus (ECompEditor *comp_edi
+ 	g_return_if_fail (E_IS_COMP_EDITOR (comp_editor));
+ 
+ 	if (comp_editor->priv->restore_focus) {
+-		gtk_widget_grab_focus (comp_editor->priv->restore_focus);
+-
+ 		if (GTK_IS_ENTRY (comp_editor->priv->restore_focus))
+-			gtk_editable_set_position (GTK_EDITABLE (comp_editor->priv->restore_focus), 0);
++			gtk_entry_grab_focus_without_selecting (GTK_ENTRY (comp_editor->priv->restore_focus));
++		else
++			gtk_widget_grab_focus (comp_editor->priv->restore_focus);
+ 
+ 		comp_editor->priv->restore_focus = NULL;
+ 	}
+@@ -2610,6 +2610,7 @@ e_comp_editor_fill_component (ECompEdito
+ 			      icalcomponent *component)
+ {
+ 	ECompEditorClass *comp_editor_class;
++	GtkWidget *focused_widget;
+ 	gboolean is_valid;
+ 
+ 	g_return_val_if_fail (E_IS_COMP_EDITOR (comp_editor), FALSE);
+@@ -2619,8 +2620,34 @@ e_comp_editor_fill_component (ECompEdito
+ 	g_return_val_if_fail (comp_editor_class != NULL, FALSE);
+ 	g_return_val_if_fail (comp_editor_class->fill_component != NULL, FALSE);
+ 
++	focused_widget = gtk_window_get_focus (GTK_WINDOW (comp_editor));
++	if (focused_widget) {
++		GtkWidget *parent, *ce_widget = GTK_WIDGET (comp_editor);
++
++		/* When a cell-renderer is focused and editing the cell content,
++		   then unfocus it may mean to free the currently focused widget,
++		   thus get the GtkTreeView in such cases. */
++		parent = focused_widget;
++		while (parent = gtk_widget_get_parent (parent), parent && parent != ce_widget) {
++			if (GTK_IS_TREE_VIEW (parent)) {
++				focused_widget = parent;
++				break;
++			}
++		}
++
++		/* Save any pending changes */
++		gtk_window_set_focus (GTK_WINDOW (comp_editor), NULL);
++	}
++
+ 	is_valid = comp_editor_class->fill_component (comp_editor, component);
+ 
++	if (focused_widget) {
++		if (GTK_IS_ENTRY (focused_widget))
++			gtk_entry_grab_focus_without_selecting (GTK_ENTRY (focused_widget));
++		else
++			gtk_widget_grab_focus (focused_widget);
++	}
++
+ 	if (is_valid && comp_editor->priv->validation_alert) {
+ 		e_alert_response (comp_editor->priv->validation_alert, GTK_RESPONSE_CLOSE);
+ 		g_clear_object (&comp_editor->priv->validation_alert);
+diff -up evolution-3.28.5/src/calendar/gui/e-comp-editor-event.c.crash-empty-attendee evolution-3.28.5/src/calendar/gui/e-comp-editor-event.c
+--- evolution-3.28.5/src/calendar/gui/e-comp-editor-event.c.crash-empty-attendee	2020-05-15 12:23:49.488776711 +0200
++++ evolution-3.28.5/src/calendar/gui/e-comp-editor-event.c	2020-05-15 12:24:47.064773299 +0200
+@@ -67,14 +67,14 @@ ece_event_update_times (ECompEditorEvent
+ 			EDateEdit *date_edit,
+ 			gboolean change_end_datetime)
+ {
+-	GtkWidget *widget;
+ 	guint flags;
+ 
+ 	g_return_if_fail (E_IS_COMP_EDITOR_EVENT (event_editor));
+ 	g_return_if_fail (E_IS_DATE_EDIT (date_edit));
+ 
+-	widget = e_date_edit_get_entry (date_edit);
+-	if (widget && gtk_widget_has_focus (widget))
++	if (e_date_edit_has_focus (date_edit) ||
++	    !e_date_edit_date_is_valid (date_edit) ||
++	    !e_date_edit_time_is_valid (date_edit))
+ 		return;
+ 
+ 	if (!e_comp_editor_get_updating (E_COMP_EDITOR (event_editor))) {
+diff -up evolution-3.28.5/src/calendar/gui/e-comp-editor-property-part.c.crash-empty-attendee evolution-3.28.5/src/calendar/gui/e-comp-editor-property-part.c
+--- evolution-3.28.5/src/calendar/gui/e-comp-editor-property-part.c.crash-empty-attendee	2020-05-15 12:24:06.520775702 +0200
++++ evolution-3.28.5/src/calendar/gui/e-comp-editor-property-part.c	2020-05-15 12:30:44.589752111 +0200
+@@ -589,6 +589,23 @@ struct _ECompEditorPropertyPartDatetimeP
+ G_DEFINE_ABSTRACT_TYPE (ECompEditorPropertyPartDatetime, e_comp_editor_property_part_datetime, E_TYPE_COMP_EDITOR_PROPERTY_PART)
+ 
+ static void
++ecepp_datetime_changed_cb (ECompEditorPropertyPart *property_part)
++{
++	GtkWidget *edit_widget;
++
++	g_return_if_fail (E_IS_COMP_EDITOR_PROPERTY_PART_DATETIME (property_part));
++
++	edit_widget = e_comp_editor_property_part_get_edit_widget (property_part);
++
++	if (!edit_widget || e_date_edit_has_focus (E_DATE_EDIT (edit_widget)) ||
++	    !e_date_edit_date_is_valid (E_DATE_EDIT (edit_widget)) ||
++	    !e_date_edit_time_is_valid (E_DATE_EDIT (edit_widget)))
++		return;
++
++	e_comp_editor_property_part_emit_changed (property_part);
++}
++
++static void
+ ecepp_datetime_create_widgets (ECompEditorPropertyPart *property_part,
+ 			       GtkWidget **out_label_widget,
+ 			       GtkWidget **out_edit_widget)
+@@ -616,9 +633,9 @@ ecepp_datetime_create_widgets (ECompEdit
+ 	gtk_widget_show (*out_edit_widget);
+ 
+ 	g_signal_connect_swapped (*out_edit_widget, "changed",
+-		G_CALLBACK (e_comp_editor_property_part_emit_changed), property_part);
++		G_CALLBACK (ecepp_datetime_changed_cb), property_part);
+ 	g_signal_connect_swapped (*out_edit_widget, "notify::show-time",
+-		G_CALLBACK (e_comp_editor_property_part_emit_changed), property_part);
++		G_CALLBACK (ecepp_datetime_changed_cb), property_part);
+ }
+ 
+ static void
+diff -up evolution-3.28.5/src/e-util/e-dateedit.c.crash-empty-attendee evolution-3.28.5/src/e-util/e-dateedit.c
+--- evolution-3.28.5/src/e-util/e-dateedit.c.crash-empty-attendee	2020-05-15 12:22:47.352780394 +0200
++++ evolution-3.28.5/src/e-util/e-dateedit.c	2020-05-15 12:24:47.068773299 +0200
+@@ -527,6 +527,13 @@ e_date_edit_new (void)
+ }
+ 
+ static void
++on_time_entry_changed_cb (GtkEditable *editable,
++			  EDateEdit *dedit)
++{
++	e_date_edit_check_time_changed (dedit);
++}
++
++static void
+ create_children (EDateEdit *dedit)
+ {
+ 	EDateEditPrivate *priv;
+@@ -636,6 +643,9 @@ create_children (EDateEdit *dedit)
+ 	g_signal_connect_after (
+ 		child, "focus_out_event",
+ 		G_CALLBACK (on_time_entry_focus_out), dedit);
++	g_signal_connect (
++		child, "changed",
++		G_CALLBACK (on_time_entry_changed_cb), dedit);
+ 	g_signal_connect_after (
+ 		priv->time_combo, "changed",
+ 		G_CALLBACK (on_date_edit_time_selected), dedit);
+@@ -2000,7 +2010,6 @@ on_date_entry_focus_out (GtkEntry *entry
+                          EDateEdit *dedit)
+ {
+ 	struct tm tmp_tm;
+-	GtkWidget *msg_dialog;
+ 
+ 	tmp_tm.tm_year = 0;
+ 	tmp_tm.tm_mon = 0;
+@@ -2009,21 +2018,9 @@ on_date_entry_focus_out (GtkEntry *entry
+ 	e_date_edit_check_date_changed (dedit);
+ 
+ 	if (!e_date_edit_date_is_valid (dedit)) {
+-		msg_dialog = gtk_message_dialog_new (
+-			NULL,
+-			GTK_DIALOG_MODAL,
+-			GTK_MESSAGE_WARNING,
+-			GTK_BUTTONS_OK,
+-			"%s", _("Invalid Date Value"));
+-		gtk_dialog_run (GTK_DIALOG (msg_dialog));
+-		gtk_widget_destroy (msg_dialog);
+-		e_date_edit_get_date (
+-			dedit, &tmp_tm.tm_year,
+-			&tmp_tm.tm_mon, &tmp_tm.tm_mday);
+-		e_date_edit_set_date (
+-			dedit, tmp_tm.tm_year,
+-			tmp_tm.tm_mon, tmp_tm.tm_mday);
+-		gtk_widget_grab_focus (GTK_WIDGET (entry));
++		gtk_entry_set_icon_from_icon_name (entry, GTK_ENTRY_ICON_SECONDARY, "dialog-warning");
++		gtk_entry_set_icon_tooltip_text (entry, GTK_ENTRY_ICON_SECONDARY, _("Invalid Date Value"));
++		gtk_entry_grab_focus_without_selecting (entry);
+ 		return FALSE;
+ 	} else if (e_date_edit_get_date (
+ 		dedit, &tmp_tm.tm_year, &tmp_tm.tm_mon, &tmp_tm.tm_mday)) {
+@@ -2041,6 +2038,10 @@ on_date_entry_focus_out (GtkEntry *entry
+ 		dedit->priv->date_set_to_none = TRUE;
+ 		e_date_edit_update_date_entry (dedit);
+ 	}
++
++	gtk_entry_set_icon_from_icon_name (entry, GTK_ENTRY_ICON_SECONDARY, NULL);
++	gtk_entry_set_icon_tooltip_text (entry, GTK_ENTRY_ICON_SECONDARY, NULL);
++
+ 	return FALSE;
+ }
+ 
+@@ -2049,23 +2050,17 @@ on_time_entry_focus_out (GtkEntry *entry
+                          GdkEventFocus *event,
+                          EDateEdit *dedit)
+ {
+-	GtkWidget *msg_dialog;
+-
+ 	e_date_edit_check_time_changed (dedit);
+ 
+ 	if (!e_date_edit_time_is_valid (dedit)) {
+-		msg_dialog = gtk_message_dialog_new (
+-			NULL,
+-			GTK_DIALOG_MODAL,
+-			GTK_MESSAGE_WARNING,
+-			GTK_BUTTONS_OK,
+-			"%s", _("Invalid Time Value"));
+-		gtk_dialog_run (GTK_DIALOG (msg_dialog));
+-		gtk_widget_destroy (msg_dialog);
+-		e_date_edit_set_time (dedit,e_date_edit_get_time (dedit));
+-		gtk_widget_grab_focus (GTK_WIDGET (entry));
+-		return FALSE;
++		gtk_entry_set_icon_from_icon_name (entry, GTK_ENTRY_ICON_PRIMARY, "dialog-warning");
++		gtk_entry_set_icon_tooltip_text (entry, GTK_ENTRY_ICON_PRIMARY, _("Invalid Time Value"));
++		gtk_entry_grab_focus_without_selecting (entry);
++	} else {
++		gtk_entry_set_icon_from_icon_name (entry, GTK_ENTRY_ICON_PRIMARY, NULL);
++		gtk_entry_set_icon_tooltip_text (entry, GTK_ENTRY_ICON_PRIMARY, NULL);
+ 	}
++
+ 	return FALSE;
+ }
+ 
+@@ -2363,7 +2358,7 @@ e_date_edit_check_time_changed (EDateEdi
+ 		tmp_tm.tm_min);
+ 
+ 	if (time_changed) {
+-		e_date_edit_update_time_entry (dedit);
++		/* Do not call e_date_edit_update_time_entry (dedit); let the user correct the value */
+ 		g_signal_emit (dedit, signals[CHANGED], 0);
+ 	}
+ }
+@@ -2467,6 +2462,20 @@ e_date_edit_set_date_internal (EDateEdit
+ 		}
+ 	}
+ 
++	if (date_changed) {
++		GtkEntry *entry;
++
++		entry = GTK_ENTRY (dedit->priv->date_entry);
++
++		if (priv->date_is_valid) {
++			gtk_entry_set_icon_from_icon_name (entry, GTK_ENTRY_ICON_SECONDARY, NULL);
++			gtk_entry_set_icon_tooltip_text (entry, GTK_ENTRY_ICON_SECONDARY, NULL);
++		} else {
++			gtk_entry_set_icon_from_icon_name (entry, GTK_ENTRY_ICON_SECONDARY, "dialog-warning");
++			gtk_entry_set_icon_tooltip_text (entry, GTK_ENTRY_ICON_SECONDARY, _("Invalid Date Value"));
++		}
++	}
++
+ 	return date_changed;
+ }
+ 
+@@ -2510,6 +2519,20 @@ e_date_edit_set_time_internal (EDateEdit
+ 		}
+ 	}
+ 
++	if (time_changed) {
++		GtkEntry *entry;
++
++		entry = GTK_ENTRY (gtk_bin_get_child (GTK_BIN (dedit->priv->time_combo)));
++
++		if (priv->time_is_valid) {
++			gtk_entry_set_icon_from_icon_name (entry, GTK_ENTRY_ICON_PRIMARY, NULL);
++			gtk_entry_set_icon_tooltip_text (entry, GTK_ENTRY_ICON_PRIMARY, NULL);
++		} else {
++			gtk_entry_set_icon_from_icon_name (entry, GTK_ENTRY_ICON_PRIMARY, "dialog-warning");
++			gtk_entry_set_icon_tooltip_text (entry, GTK_ENTRY_ICON_PRIMARY, _("Invalid Time Value"));
++		}
++	}
++
+ 	return time_changed;
+ }
+ 
+@@ -2561,3 +2584,13 @@ e_date_edit_get_entry (EDateEdit *dedit)
+ 
+ 	return GTK_WIDGET (dedit->priv->date_entry);
+ }
++
++gboolean
++e_date_edit_has_focus (EDateEdit *dedit)
++{
++	g_return_val_if_fail (E_IS_DATE_EDIT (dedit), FALSE);
++
++	return gtk_widget_has_focus (GTK_WIDGET (dedit)) ||
++		(dedit->priv->date_entry && gtk_widget_has_focus (dedit->priv->date_entry)) ||
++		(dedit->priv->time_combo && gtk_widget_has_focus (dedit->priv->time_combo));
++}
+diff -up evolution-3.28.5/src/e-util/e-dateedit.h.crash-empty-attendee evolution-3.28.5/src/e-util/e-dateedit.h
+--- evolution-3.28.5/src/e-util/e-dateedit.h.crash-empty-attendee	2020-05-15 12:24:41.256773643 +0200
++++ evolution-3.28.5/src/e-util/e-dateedit.h	2020-05-15 12:24:47.068773299 +0200
+@@ -211,6 +211,8 @@ void		e_date_edit_set_get_time_callback
+ 
+ GtkWidget *	e_date_edit_get_entry		(EDateEdit *dedit);
+ 
++gboolean	e_date_edit_has_focus		(EDateEdit *dedit);
++
+ G_END_DECLS
+ 
+ #endif /* E_DATE_EDIT_H */
+diff -up evolution-3.28.5/src/modules/calendar/e-cal-shell-content.c.crash-empty-attendee evolution-3.28.5/src/modules/calendar/e-cal-shell-content.c
+--- evolution-3.28.5/src/modules/calendar/e-cal-shell-content.c.crash-empty-attendee	2018-07-30 15:37:05.000000000 +0200
++++ evolution-3.28.5/src/modules/calendar/e-cal-shell-content.c	2020-05-15 12:21:11.487786075 +0200
+@@ -847,9 +847,9 @@ cal_shell_content_get_attendee_prop (ica
+ 	while (prop != NULL) {
+ 		const gchar *attendee;
+ 
+-		attendee = icalproperty_get_attendee (prop);
++		attendee = itip_strip_mailto (icalproperty_get_attendee (prop));
+ 
+-		if (g_str_equal (itip_strip_mailto (attendee), address))
++		if (attendee && g_ascii_strcasecmp (attendee, address) == 0)
+ 			return prop;
+ 
+ 		prop = icalcomponent_get_next_property (

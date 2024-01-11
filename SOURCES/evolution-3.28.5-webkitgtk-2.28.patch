@@ -1,0 +1,35 @@
+diff -up evolution-3.28.5/src/e-util/e-misc-utils.c.webkitgtk-2.28 evolution-3.28.5/src/e-util/e-misc-utils.c
+--- evolution-3.28.5/src/e-util/e-misc-utils.c.webkitgtk-2.28	2020-06-11 15:56:03.324428384 +0200
++++ evolution-3.28.5/src/e-util/e-misc-utils.c	2020-06-11 15:56:03.334428384 +0200
+@@ -3633,7 +3633,7 @@ e_util_claim_dbus_proxy_call_error (GDBu
+ 	g_return_if_fail (method_name != NULL);
+ 
+ 	if (in_error && !g_error_matches (in_error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+-		g_warning ("Failed to call a DBus Proxy method %s::%s: %s",
++		printf ("Failed to call a DBus Proxy method %s::%s: %s\n",
+ 			g_dbus_proxy_get_name (dbus_proxy), method_name, in_error->message);
+ }
+ 
+diff -up evolution-3.28.5/src/e-util/e-web-view.c.webkitgtk-2.28 evolution-3.28.5/src/e-util/e-web-view.c
+--- evolution-3.28.5/src/e-util/e-web-view.c.webkitgtk-2.28	2018-07-30 15:37:05.000000000 +0200
++++ evolution-3.28.5/src/e-util/e-web-view.c	2020-06-11 15:57:24.375430212 +0200
+@@ -1221,6 +1221,9 @@ web_view_initialize (WebKitWebView *web_
+ 		g_object_unref (settings);
+ }
+ 
++static void
++web_view_load_uri (EWebView *web_view,
++                   const gchar *uri);
+ 
+ static void
+ web_view_constructed (GObject *object)
+@@ -1265,6 +1268,9 @@ web_view_constructed (GObject *object)
+ 	web_view_initialize (WEBKIT_WEB_VIEW (object));
+ 
+ 	web_view_set_find_controller (E_WEB_VIEW (object));
++
++	/* Initialize the WebPage content for WebKitGTK 2.28 */
++	web_view_load_uri (E_WEB_VIEW (object), NULL);
+ }
+ 
+ static void
