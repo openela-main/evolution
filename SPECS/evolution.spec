@@ -31,7 +31,7 @@
 
 Name: evolution
 Version: 3.28.5
-Release: 22%{?dist}
+Release: 23%{?dist}
 Group: Applications/Productivity
 Summary: Mail and calendar client for GNOME
 License: GPLv2+ and GFDL
@@ -104,6 +104,9 @@ Patch16: evolution-3.28.5-contacts-prefer-orig-value.patch
 
 # RH bug #2129702
 Patch17: evolution-3.28.5-new-button.patch
+
+# https://issues.redhat.com/browse/RHEL-17661
+Patch18: evolution-3.28.5-webkitgtk-2.40.patch
 
 ## Dependencies ###
 
@@ -292,6 +295,7 @@ the functionality of the installed %{name} package.
 %patch15 -p1 -b .frame-flattenning
 %patch16 -p1 -b .contacts-prefer-orig-value
 %patch17 -p1 -b .new-button
+%patch18 -p1 -b .webkitgtk-2.40
 
 # Remove the welcome email from Novell
 for inbox in src/mail/default/*/Inbox; do
@@ -590,6 +594,9 @@ grep -v "/usr/share/locale" evolution.lang > help.lang
 %endif
 
 %changelog
+* Tue Dec 12 2023 Milan Crha <mcrha@redhat.com> - 3.28.5-23
+- Resolves: RHEL-19128 (Composer: Cursor jumps over characters when using backspace or delete)
+
 * Wed Jan 04 2023 Milan Crha <mcrha@redhat.com> - 3.28.5-22
 - Resolves: #2126523 (Update patch to handle frame flattening change in WebKitGTK)
 

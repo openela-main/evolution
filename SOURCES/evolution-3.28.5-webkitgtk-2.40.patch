@@ -1,0 +1,302 @@
+diff --git a/src/modules/webkit-editor/web-extension/e-editor-dom-functions.c b/src/modules/webkit-editor/web-extension/e-editor-dom-functions.c
+index 3568f6e..35de5c0 100644
+--- a/src/modules/webkit-editor/web-extension/e-editor-dom-functions.c
++++ b/src/modules/webkit-editor/web-extension/e-editor-dom-functions.c
+@@ -626,6 +626,20 @@ e_editor_dom_exec_command (EEditorPage *editor_page,
+ 		e_editor_page_get_document (editor_page), cmd_str, FALSE, has_value ? value : "" );
+ }
+ 
++static WebKitDOMRange *
++clone_and_unref_range (WebKitDOMRange *range)
++{
++	WebKitDOMRange *clone;
++
++	if (!range)
++		return NULL;
++
++	clone = webkit_dom_range_clone_range (range, NULL);
++	g_object_unref (range);
++
++	return clone;
++}
++
+ static void
+ perform_spell_check (WebKitDOMDOMSelection *dom_selection,
+                      WebKitDOMRange *start_range,
+@@ -642,8 +656,7 @@ perform_spell_check (WebKitDOMDOMSelection *dom_selection,
+ 			g_object_unref (actual);
+ 		webkit_dom_dom_selection_modify (
+ 			dom_selection, "move", "forward", "word");
+-		actual = webkit_dom_dom_selection_get_range_at (
+-			dom_selection, 0, NULL);
++		actual = clone_and_unref_range (webkit_dom_dom_selection_get_range_at (dom_selection, 0, NULL));
+ 	}
+ 	g_clear_object (&actual);
+ }
+@@ -1524,8 +1537,10 @@ e_editor_dom_check_magic_links (EEditorPage *editor_page,
+ 			selection_end_marker = webkit_dom_document_get_element_by_id (
+ 				document, "-x-evo-selection-end-marker");
+ 
+-			node = webkit_dom_node_get_previous_sibling (
+-				WEBKIT_DOM_NODE (selection_end_marker));
++			if (selection_end_marker)
++				node = webkit_dom_node_get_previous_sibling (WEBKIT_DOM_NODE (selection_end_marker));
++			else
++				node = NULL;
+ 		}
+ 	}
+ 
+@@ -4120,7 +4134,7 @@ caret_is_on_the_line_beginning_html (WebKitDOMDocument *document)
+ 	dom_window = webkit_dom_document_get_default_view (document);
+ 	dom_selection = webkit_dom_dom_window_get_selection (dom_window);
+ 
+-	actual_range = webkit_dom_dom_selection_get_range_at (dom_selection, 0, NULL);
++	actual_range = clone_and_unref_range (webkit_dom_dom_selection_get_range_at (dom_selection, 0, NULL));
+ 
+ 	webkit_dom_dom_selection_modify (dom_selection, "move", "left", "lineBoundary");
+ 
+@@ -9388,7 +9402,7 @@ save_history_for_delete_or_backspace (EEditorPage *editor_page,
+ 		return;
+ 	}
+ 
+-	range = webkit_dom_dom_selection_get_range_at (dom_selection, 0, NULL);
++	range = clone_and_unref_range (webkit_dom_dom_selection_get_range_at (dom_selection, 0, NULL));
+ 
+ 	/* Check if we can delete something */
+ 	if (webkit_dom_range_get_collapsed (range, NULL)) {
+@@ -9503,7 +9517,7 @@ save_history_for_delete_or_backspace (EEditorPage *editor_page,
+ 				} else {
+ 					WebKitDOMRange *tmp_range = NULL, *actual_range = NULL;
+ 
+-					actual_range = webkit_dom_dom_selection_get_range_at (dom_selection, 0, NULL);
++					actual_range = clone_and_unref_range (webkit_dom_dom_selection_get_range_at (dom_selection, 0, NULL));
+ 
+ 					webkit_dom_dom_selection_modify (
+ 						dom_selection, "move", delete_key ? "right" : "left", "character");
+@@ -11348,7 +11362,7 @@ e_editor_dom_save_history_for_drag (EEditorPage *editor_page)
+ 	}
+ 
+ 	/* Obtain the dragged content. */
+-	range = webkit_dom_dom_selection_get_range_at (dom_selection, 0, NULL);
++	range = clone_and_unref_range (webkit_dom_dom_selection_get_range_at (dom_selection, 0, NULL));
+ 	range_clone = webkit_dom_range_clone_range (range, NULL);
+ 
+ 	/* Create the history event for the content that will
+@@ -11708,7 +11722,7 @@ e_editor_dom_get_current_range (EEditorPage *editor_page)
+ 	if (webkit_dom_dom_selection_get_range_count (dom_selection) < 1)
+ 		goto exit;
+ 
+-	range = webkit_dom_dom_selection_get_range_at (dom_selection, 0, NULL);
++	range = clone_and_unref_range (webkit_dom_dom_selection_get_range_at (dom_selection, 0, NULL));
+  exit:
+ 	g_clear_object (&dom_selection);
+ 	g_clear_object (&dom_window);
+@@ -13515,6 +13529,107 @@ e_editor_dom_is_selection_position_node (WebKitDOMNode *node)
+ 	       element_has_id (element, "-x-evo-selection-end-marker");
+ }
+ 
++static void
++e_editor_shift_for_normalize (WebKitDOMNode **inout_node,
++			      glong *inout_offset)
++{
++	WebKitDOMNode *node = *inout_node;
++	glong offset = *inout_offset;
++
++	node = *inout_node;
++	while (node = webkit_dom_node_get_previous_sibling (node), node && WEBKIT_DOM_IS_TEXT (node)) {
++		gchar *text;
++
++		text = webkit_dom_node_get_node_value (node);
++		if (text) {
++			offset += g_utf8_strlen (text, -1);
++			g_free (text);
++		}
++
++		*inout_node = node;
++	}
++
++	*inout_offset = offset;
++}
++
++static WebKitDOMNode *
++e_editor_get_previous_node (WebKitDOMNode *in_node,
++			    glong *out_offset)
++{
++	WebKitDOMNode *node, *child;
++
++	*out_offset = 0;
++
++	node = webkit_dom_node_get_previous_sibling (in_node);
++	if (!node)
++		return webkit_dom_node_get_parent_node (in_node);
++
++	while (child = webkit_dom_node_get_last_child (node), child) {
++		node = child;
++	}
++
++	if (WEBKIT_DOM_IS_TEXT (node)) {
++		gchar *text;
++
++		text = webkit_dom_node_get_node_value (node);
++		if (text) {
++			*out_offset = g_utf8_strlen (text, -1);
++			g_free (text);
++		}
++	}
++
++	return node;
++}
++
++static WebKitDOMNode *
++e_editor_get_next_node (WebKitDOMNode *in_node,
++			glong *out_offset)
++{
++	WebKitDOMNode *node;
++
++	*out_offset = 0;
++
++	node = webkit_dom_node_get_next_sibling (in_node);
++	if (!node) {
++		node = webkit_dom_node_get_previous_sibling (in_node);
++		if (node) {
++			WebKitDOMNode *child = node;
++
++			while (child = webkit_dom_node_get_last_child (child), child) {
++				node = child;
++			}
++
++			if (WEBKIT_DOM_IS_TEXT (node)) {
++				gchar *text;
++
++				text = webkit_dom_node_get_node_value (node);
++				if (text) {
++					*out_offset += g_utf8_strlen (text, -1);
++					g_free (text);
++				}
++			}
++		}
++	}
++
++	if (!node) {
++		WebKitDOMNode *parent;
++
++		parent = in_node;
++
++		while (parent = webkit_dom_node_get_parent_node (parent), parent) {
++			if (WEBKIT_DOM_IS_HTML_BODY_ELEMENT (parent)) {
++				node = in_node;
++				break;
++			}
++			node = webkit_dom_node_get_first_child (parent);
++			if (node)
++				break;
++		}
++	}
++
++	return node;
++}
++
+ /*
+  * e_html_editor_selection_restore:
+  * @selection: an #EEditorSelection
+@@ -13531,12 +13646,13 @@ e_editor_dom_selection_restore (EEditorPage *editor_page)
+ 	WebKitDOMDocument *document;
+ 	WebKitDOMElement *marker;
+ 	WebKitDOMNode *selection_start_marker, *selection_end_marker;
+-	WebKitDOMNode *parent_start, *parent_end, *anchor;
++	WebKitDOMNode *parent_start, *parent_end, *start_node, *end_node, *anchor;
+ 	WebKitDOMRange *range = NULL;
+ 	WebKitDOMDOMSelection *dom_selection = NULL;
+ 	WebKitDOMDOMWindow *dom_window = NULL;
+ 	gboolean start_is_anchor = FALSE;
+-	glong offset;
++	glong start_offset, end_offset;
++	gchar *str;
+ 
+ 	g_return_if_fail (E_IS_EDITOR_PAGE (editor_page));
+ 
+@@ -13614,7 +13730,7 @@ e_editor_dom_selection_restore (EEditorPage *editor_page)
+ 	start_is_anchor = webkit_dom_element_has_attribute (marker, "data-anchor");
+ 	parent_start = webkit_dom_node_get_parent_node (WEBKIT_DOM_NODE (marker));
+ 
+-	webkit_dom_range_set_start_after (range, WEBKIT_DOM_NODE (marker), NULL);
++	start_node = e_editor_get_previous_node (WEBKIT_DOM_NODE (marker), &start_offset);
+ 	remove_node (WEBKIT_DOM_NODE (marker));
+ 
+ 	marker = webkit_dom_document_get_element_by_id (
+@@ -13631,30 +13747,47 @@ e_editor_dom_selection_restore (EEditorPage *editor_page)
+ 
+ 	parent_end = webkit_dom_node_get_parent_node (WEBKIT_DOM_NODE (marker));
+ 
+-	webkit_dom_range_set_end_before (range, WEBKIT_DOM_NODE (marker), NULL);
++	end_node = e_editor_get_next_node (WEBKIT_DOM_NODE (marker), &end_offset);
+ 	remove_node (WEBKIT_DOM_NODE (marker));
+ 
++	e_editor_shift_for_normalize (&start_node, &start_offset);
++	e_editor_shift_for_normalize (&end_node, &end_offset);
+ 	webkit_dom_dom_selection_remove_all_ranges (dom_selection);
+-	if (webkit_dom_node_is_same_node (parent_start, parent_end))
++	if (webkit_dom_node_is_same_node (parent_start, parent_end)) {
+ 		webkit_dom_node_normalize (parent_start);
+-	else {
++	} else {
+ 		webkit_dom_node_normalize (parent_start);
+ 		webkit_dom_node_normalize (parent_end);
+ 	}
+ 
+ 	if (start_is_anchor) {
+-		anchor = webkit_dom_range_get_end_container (range, NULL);
+-		offset = webkit_dom_range_get_end_offset (range, NULL);
+-
+-		webkit_dom_range_collapse (range, TRUE, NULL);
++		anchor = start_node;
++		if (webkit_dom_node_is_same_node (start_node, end_node) && start_offset == end_offset)
++			end_node = NULL;
+ 	} else {
+-		anchor = webkit_dom_range_get_start_container (range, NULL);
+-		offset = webkit_dom_range_get_start_offset (range, NULL);
++		glong tmp_offset;
++
++		anchor = end_node;
++		end_node = start_node;
++		start_node = anchor;
++		tmp_offset = start_offset;
++		start_offset = end_offset;
++		end_offset = tmp_offset;
++	}
++
++	webkit_dom_range_set_start (range, WEBKIT_DOM_NODE (anchor), start_offset, NULL);
+ 
++	if (end_node) {
++		webkit_dom_range_set_end (range, WEBKIT_DOM_NODE (end_node), end_offset, NULL);
+ 		webkit_dom_range_collapse (range, FALSE, NULL);
++		webkit_dom_dom_selection_add_range (dom_selection, range);
++		webkit_dom_dom_selection_set_base_and_extent (dom_selection, anchor, start_offset, end_node, end_offset);
++	} else {
++		webkit_dom_range_set_end (range, WEBKIT_DOM_NODE (anchor), start_offset, NULL);
++		webkit_dom_range_collapse (range, TRUE, NULL);
++		webkit_dom_dom_selection_add_range (dom_selection, range);
++		webkit_dom_dom_selection_set_position (dom_selection, anchor, start_offset);
+ 	}
+-	webkit_dom_dom_selection_add_range (dom_selection, range);
+-	webkit_dom_dom_selection_extend (dom_selection, anchor, offset, NULL);
+ 
+ 	g_clear_object (&dom_selection);
+ 	g_clear_object (&range);
+diff --git a/src/modules/webkit-editor/web-extension/e-editor-web-extension.c b/src/modules/webkit-editor/web-extension/e-editor-web-extension.c
+index d799db4..a286583 100644
+--- a/src/modules/webkit-editor/web-extension/e-editor-web-extension.c
++++ b/src/modules/webkit-editor/web-extension/e-editor-web-extension.c
+@@ -2465,8 +2465,10 @@ web_page_document_loaded_cb (WebKitWebPage *web_page,
+ 	if (!webkit_dom_dom_selection_get_anchor_node (dom_selection) &&
+ 	    !webkit_dom_dom_selection_get_focus_node (dom_selection)) {
+ 		range = webkit_dom_document_caret_range_from_point (document, 0, 0);
+-		webkit_dom_dom_selection_remove_all_ranges (dom_selection);
+-		webkit_dom_dom_selection_add_range (dom_selection, range);
++		if (range) {
++			webkit_dom_dom_selection_remove_all_ranges (dom_selection);
++			webkit_dom_dom_selection_add_range (dom_selection, range);
++		}
+ 	}
+ 
+ 	g_clear_object (&range);
