@@ -43,7 +43,7 @@
 
 Name: evolution
 Version: 3.40.4
-Release: 9%{?dist}
+Release: 10%{?dist}
 Summary: Mail and calendar client for GNOME
 License: GPLv2+ and GFDL
 URL: https://wiki.gnome.org/Apps/Evolution
@@ -81,6 +81,7 @@ Requires: %{_bindir}/killall
 Requires: gvfs
 %endif
 Requires: evolution-data-server >= %{eds_version}
+Requires: evolution-data-server-ui >= %{eds_version}
 Requires: gspell
 Requires: highlight
 Requires: %{name}-langpacks = %{version}-%{release}
@@ -574,6 +575,10 @@ grep -v "%{_datadir}/locale" evolution.lang > help.lang
 %endif
 
 %changelog
+* Wed Oct 11 2023 Milan Crha <mcrha@redhat.com> - 3.40.4-10
+- Related: RHEL-12405 (Move WebKitGTK parts in Evolution Data Server into optional subpackage)
+- Add dependency on newly introduced evolution-data-server-ui
+
 * Tue Jan 03 2023 Milan Crha <mcrha@redhat.com> - 3.40.4-9
 - Resolves: #2126524 (Update patch to handle frame flattening change in WebKitGTK)
 
