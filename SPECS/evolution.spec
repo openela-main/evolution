@@ -31,7 +31,7 @@
 
 Name: evolution
 Version: 3.28.5
-Release: 25%{?dist}
+Release: 26%{?dist}
 Group: Applications/Productivity
 Summary: Mail and calendar client for GNOME
 License: GPLv2+ and GFDL
@@ -112,6 +112,7 @@ Patch18: evolution-3.28.5-webkitgtk-2.40.patch
 
 Requires: %{_bindir}/killall
 Requires: evolution-data-server >= %{eds_version}
+Requires: evolution-data-server-ui >= %{eds_version}
 Requires: gvfs
 Requires: gtkspell3
 Requires: highlight
@@ -594,14 +595,18 @@ grep -v "/usr/share/locale" evolution.lang > help.lang
 %endif
 
 %changelog
-* Mon Mar 18 2024 Milan Crha <mcrha@redhat.com> - 3.28.5-25
-- Resolves: RHEL-29199 (Composer: Cursor jumps to the starting line when "return" key is pressed at the end of the line)
+* Mon Mar 18 2024 Milan Crha <mcrha@redhat.com> - 3.28.5-26
+- Resolves: RHEL-29169 (Composer: Cursor jumps to the starting line when "return" key is pressed at the end of the line)
 
-* Thu Mar 14 2024 Milan Crha <mcrha@redhat.com> - 3.28.5-24
-- Resolves: RHEL-29199 (Composer: Cursor jumps to the starting line when "return" key is pressed at the end of the line)
+* Thu Mar 14 2024 Milan Crha <mcrha@redhat.com> - 3.28.5-25
+- Resolves: RHEL-29169 (Composer: Cursor jumps to the starting line when "return" key is pressed at the end of the line)
 
-* Tue Dec 12 2023 Milan Crha <mcrha@redhat.com> - 3.28.5-23
-- Resolves: RHEL-19128 (Composer: Cursor jumps over characters when using backspace or delete)
+* Tue Dec 12 2023 Milan Crha <mcrha@redhat.com> - 3.28.5-24
+- Resolves: RHEL-17661 (Composer: Cursor jumps over characters when using backspace or delete)
+
+* Wed Oct 11 2023 Milan Crha <mcrha@redhat.com> - 3.28.5-23
+- Related: RHEL-12398 (Move WebKitGTK parts in Evolution Data Server into optional subpackage)
+- Add dependency on newly introduced evolution-data-server-ui
 
 * Wed Jan 04 2023 Milan Crha <mcrha@redhat.com> - 3.28.5-22
 - Resolves: #2126523 (Update patch to handle frame flattening change in WebKitGTK)
