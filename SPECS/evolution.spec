@@ -31,7 +31,7 @@
 
 Name: evolution
 Version: 3.28.5
-Release: 26%{?dist}
+Release: 27%{?dist}
 Group: Applications/Productivity
 Summary: Mail and calendar client for GNOME
 License: GPLv2+ and GFDL
@@ -107,6 +107,8 @@ Patch17: evolution-3.28.5-new-button.patch
 
 # https://issues.redhat.com/browse/RHEL-17661
 Patch18: evolution-3.28.5-webkitgtk-2.40.patch
+
+Patch19: webkitgtk-2.46.1-middle-click-paste.patch
 
 ## Dependencies ###
 
@@ -297,6 +299,7 @@ the functionality of the installed %{name} package.
 %patch16 -p1 -b .contacts-prefer-orig-value
 %patch17 -p1 -b .new-button
 %patch18 -p1 -b .webkitgtk-2.40
+%patch19 -p1 -b .webkitgtk-2.46.1
 
 # Remove the welcome email from Novell
 for inbox in src/mail/default/*/Inbox; do
@@ -595,6 +598,9 @@ grep -v "/usr/share/locale" evolution.lang > help.lang
 %endif
 
 %changelog
+* Tue Oct 15 2024 Milan Crha <mcrha@redhat.com> - 3.28.5-27
+- Resolves: RHEL-62681 (WebKitGTK 2.46.1: Middle mouse button inserts primary clipboard twice)
+
 * Mon Mar 18 2024 Milan Crha <mcrha@redhat.com> - 3.28.5-26
 - Resolves: RHEL-29169 (Composer: Cursor jumps to the starting line when "return" key is pressed at the end of the line)
 
