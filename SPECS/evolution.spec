@@ -43,7 +43,7 @@
 
 Name: evolution
 Version: 3.40.4
-Release: 10%{?dist}.1
+Release: 11%{?dist}
 Summary: Mail and calendar client for GNOME
 License: GPLv2+ and GFDL
 URL: https://wiki.gnome.org/Apps/Evolution
@@ -576,8 +576,8 @@ grep -v "%{_datadir}/locale" evolution.lang > help.lang
 %endif
 
 %changelog
-* Tue Oct 15 2024 Milan Crha <mcrha@redhat.com> - 3.40.4-10.1
-- Resolves: RHEL-62680 (WebKitGTK 2.46.1: Middle mouse button inserts primary clipboard twice)
+* Tue Oct 15 2024 Milan Crha <mcrha@redhat.com> - 3.40.4-11
+- Resolves: RHEL-62668 (WebKitGTK 2.46.1: Middle mouse button inserts primary clipboard twice)
 
 * Wed Oct 11 2023 Milan Crha <mcrha@redhat.com> - 3.40.4-10
 - Related: RHEL-12405 (Move WebKitGTK parts in Evolution Data Server into optional subpackage)
