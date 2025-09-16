@@ -43,7 +43,7 @@
 
 Name: evolution
 Version: 3.40.4
-Release: 11%{?dist}
+Release: 11%{?dist}.1
 Summary: Mail and calendar client for GNOME
 License: GPLv2+ and GFDL
 URL: https://wiki.gnome.org/Apps/Evolution
@@ -60,6 +60,7 @@ Patch05: webkitgtk-2.36.0-disable-hw-accel.patch
 Patch06: evolution-3.40.4-frame-flattenning.patch
 Patch07: evolution-3.40.4-new-button.patch
 Patch08: webkitgtk-2.46.1-middle-click-paste.patch
+Patch09: webkitgtk-2.49.4-fix-JavaScript-code.patch
 
 # Approximate version number
 Provides: bundled(libgnomecanvas) = 2.30.0
@@ -576,6 +577,9 @@ grep -v "%{_datadir}/locale" evolution.lang > help.lang
 %endif
 
 %changelog
+* Mon Sep 01 2025 Milan Crha <mcrha@redhat.com> - 3.40.4-11.1
+- Resolves: RHEL-111959 (WebKitGTK 2.49.4: JavaScript evaluation result serialization changes)
+
 * Tue Oct 15 2024 Milan Crha <mcrha@redhat.com> - 3.40.4-11
 - Resolves: RHEL-62668 (WebKitGTK 2.46.1: Middle mouse button inserts primary clipboard twice)
 

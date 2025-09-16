@@ -1,0 +1,72 @@
+diff -up evolution-3.40.4/data/webkit/e-editor.js.9 evolution-3.40.4/data/webkit/e-editor.js
+--- evolution-3.40.4/data/webkit/e-editor.js.9	2021-08-13 11:50:35.000000000 +0200
++++ evolution-3.40.4/data/webkit/e-editor.js	2025-09-01 10:37:18.105962005 +0200
+@@ -4060,7 +4060,7 @@ EvoEditor.LinkGetProperties = function()
+ 	var res = null, anchor = EvoEditor.getParentElement("A", null, false);
+ 
+ 	if (anchor) {
+-		res = [];
++		res = {};
+ 		res["href"] = anchor.href;
+ 		res["text"] = anchor.innerText;
+ 	} else if (!document.getSelection().isCollapsed && document.getSelection().rangeCount > 0) {
+@@ -4069,7 +4069,7 @@ EvoEditor.LinkGetProperties = function()
+ 		range = document.getSelection().getRangeAt(0);
+ 
+ 		if (range) {
+-			res = [];
++			res = {};
+ 			res["text"] = range.toString();
+ 		}
+ 	}
+@@ -5131,7 +5131,7 @@ EvoEditor.InsertSignature = function(con
+ 		EvoUndoRedo.StopRecord(EvoUndoRedo.RECORD_KIND_GROUP, "InsertSignature");
+ 	}
+ 
+-	var res = [];
++	var res = {};
+ 
+ 	res["fromMessage"] = fromMessage;
+ 	res["checkChanged"] = checkChanged;
+@@ -6277,7 +6277,7 @@ EvoEditor.onContextMenu = function(event
+ 	if (document.getSelection().isCollapsed)
+ 		nodeFlags |= EvoEditor.E_CONTENT_EDITOR_NODE_IS_TEXT_COLLAPSED;
+ 
+-	res = [];
++	res = {};
+ 
+ 	res["nodeFlags"] = nodeFlags;
+ 	res["caretWord"] = EvoEditor.GetCaretWord();
+diff -up evolution-3.40.4/data/webkit/e-web-view.js.9 evolution-3.40.4/data/webkit/e-web-view.js
+--- evolution-3.40.4/data/webkit/e-web-view.js.9	2025-09-01 10:31:15.781824966 +0200
++++ evolution-3.40.4/data/webkit/e-web-view.js	2025-09-01 10:31:15.809863550 +0200
+@@ -357,7 +357,7 @@ Evo.elementClicked = function(elem)
+ 		dom_window = parent_dom_window;
+ 	}
+ 
+-	var res = [];
++	var res = {};
+ 
+ 	res["iframe-id"] = parent_iframe_id;
+ 	res["elem-id"] = elem.id;
+@@ -575,7 +575,7 @@ Evo.GetElementFromPoint = function(xx, y
+ 	if (!elem)
+ 		return null;
+ 
+-	var res = [], iframe;
++	var res = {}, iframe;
+ 
+ 	iframe = elem.ownerDocument.defaultView.frameElement;
+ 
+diff -up evolution-3.40.4/src/e-util/test-web-view-jsc.c.9 evolution-3.40.4/src/e-util/test-web-view-jsc.c
+--- evolution-3.40.4/src/e-util/test-web-view-jsc.c.9	2021-08-13 11:50:35.000000000 +0200
++++ evolution-3.40.4/src/e-util/test-web-view-jsc.c	2025-09-01 10:31:15.810142321 +0200
+@@ -536,7 +536,7 @@ test_jsc_object_properties (TestFixture
+ 	str = e_web_view_jsc_printf_script (
+ 		"test_obj_props = function()\n"
+ 		"{\n"
+-		"	var arrobj = [];\n"
++		"	var arrobj = {};\n"
+ 		"	arrobj[\"btrue\"] = true;\n"
+ 		"	arrobj[\"bfalse\"] = false;\n"
+ 		"	arrobj[\"i2\"] = 2;\n"
