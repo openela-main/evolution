@@ -43,7 +43,7 @@
 
 Name: evolution
 Version: 3.40.4
-Release: 11%{?dist}.1
+Release: 12%{?dist}
 Summary: Mail and calendar client for GNOME
 License: GPLv2+ and GFDL
 URL: https://wiki.gnome.org/Apps/Evolution
@@ -577,8 +577,8 @@ grep -v "%{_datadir}/locale" evolution.lang > help.lang
 %endif
 
 %changelog
-* Mon Sep 01 2025 Milan Crha <mcrha@redhat.com> - 3.40.4-11.1
-- Resolves: RHEL-111959 (WebKitGTK 2.49.4: JavaScript evaluation result serialization changes)
+* Mon Sep 01 2025 Milan Crha <mcrha@redhat.com> - 3.40.4-12
+- Resolves: RHEL-111953 (WebKitGTK 2.49.4: JavaScript evaluation result serialization changes)
 
 * Tue Oct 15 2024 Milan Crha <mcrha@redhat.com> - 3.40.4-11
 - Resolves: RHEL-62668 (WebKitGTK 2.46.1: Middle mouse button inserts primary clipboard twice)
