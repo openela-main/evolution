@@ -31,7 +31,7 @@
 
 Name: evolution
 Version: 3.28.5
-Release: 27%{?dist}
+Release: 28%{?dist}
 Group: Applications/Productivity
 Summary: Mail and calendar client for GNOME
 License: GPLv2+ and GFDL
@@ -109,6 +109,7 @@ Patch17: evolution-3.28.5-new-button.patch
 Patch18: evolution-3.28.5-webkitgtk-2.40.patch
 
 Patch19: webkitgtk-2.46.1-middle-click-paste.patch
+Patch20: webkitgtk-2.54.0-cors-allow-list.patch
 
 ## Dependencies ###
 
@@ -300,6 +301,7 @@ the functionality of the installed %{name} package.
 %patch17 -p1 -b .new-button
 %patch18 -p1 -b .webkitgtk-2.40
 %patch19 -p1 -b .webkitgtk-2.46.1
+%patch20 -p1 -b .webkitgtk-2.54
 
 # Remove the welcome email from Novell
 for inbox in src/mail/default/*/Inbox; do
@@ -598,6 +600,9 @@ grep -v "/usr/share/locale" evolution.lang > help.lang
 %endif
 
 %changelog
+* Mon Oct 12 2026 Milan Crha <mcrha@redhat.com> - 3.28.5-28
+- Resolves: RHEL-280204 (WebKitGTK 2.54: Set CORS allow list on the WebKitWebView for known URI-s)
+
 * Tue Oct 15 2024 Milan Crha <mcrha@redhat.com> - 3.28.5-27
 - Resolves: RHEL-62681 (WebKitGTK 2.46.1: Middle mouse button inserts primary clipboard twice)
 

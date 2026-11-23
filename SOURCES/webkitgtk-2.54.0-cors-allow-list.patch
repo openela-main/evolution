@@ -1,0 +1,60 @@
+diff --git a/src/e-util/e-web-view.c b/src/e-util/e-web-view.c
+index cbd4976..db760ff 100644
+--- a/src/e-util/e-web-view.c
++++ b/src/e-util/e-web-view.c
+@@ -90,6 +90,7 @@ struct _EWebViewPrivate {
+ 	gboolean has_hover_link;
+ 
+ 	GSList *content_requests; /* EContentRequest * */
++	GHashTable *request_schemes; /* char *scheme ~> NULL */
+ 
+ 	GHashTable *element_clicked_cbs; /* gchar *element_class ~> GPtrArray {ElementClickedData} */
+ 	guint web_extension_element_clicked_signal_id;
+@@ -1068,6 +1069,7 @@ web_view_finalize (GObject *object)
+ 	}
+ 
+ 	g_hash_table_destroy (priv->element_clicked_cbs);
++	g_hash_table_destroy (priv->request_schemes);
+ 
+ 	/* Chain up to parent's finalize() method. */
+ 	G_OBJECT_CLASS (e_web_view_parent_class)->finalize (object);
+@@ -1182,6 +1184,31 @@ e_web_view_register_content_request_for_scheme (EWebView *web_view,
+ 			web_view->priv->content_requests,
+ 			g_object_ref (content_request));
+ 	}
++
++	if (g_hash_table_insert (web_view->priv->request_schemes, g_strdup (scheme), NULL)) {
++		GPtrArray *allow_list;
++		GHashTableIter iter;
++		gpointer key = NULL;
++
++		allow_list = g_ptr_array_new_full (g_hash_table_size (web_view->priv->request_schemes) + 1, g_free);
++
++		g_hash_table_iter_init (&iter, web_view->priv->request_schemes);
++		while (g_hash_table_iter_next (&iter, &key, NULL)) {
++			const gchar *scheme_str = key;
++
++			if (scheme_str && *scheme_str) {
++				/* construct pattern like "cid://_/_" (where '_' is '*', but in the comment
++				   it cannot be used verbatim), which is what the WebKitGTK expects */
++				g_ptr_array_add (allow_list, g_strconcat (scheme_str, "://*/*", NULL));
++			}
++		}
++
++		g_ptr_array_add (allow_list, NULL);
++
++		webkit_web_view_set_cors_allowlist (WEBKIT_WEB_VIEW (web_view), (const gchar * const *) allow_list->pdata);
++
++		g_ptr_array_unref (allow_list);
++	}
+ }
+ 
+ static void
+@@ -2393,6 +2420,7 @@ e_web_view_init (EWebView *web_view)
+ 	web_view->priv = E_WEB_VIEW_GET_PRIVATE (web_view);
+ 
+ 	web_view->priv->old_settings = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) g_variant_unref);
++	web_view->priv->request_schemes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+ 
+ 	g_signal_connect (
+ 		web_view, "context-menu",
